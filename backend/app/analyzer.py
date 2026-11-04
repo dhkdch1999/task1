@@ -61,7 +61,9 @@ def clean_title(subject: str) -> str:
     s = strip_prefixes(subject)
     s = _TAG_RE.sub(" ", s)
     s = strip_dates(s)
-    s = re.sub(r"[_\-]+", " ", s)
+    # 밑줄은 띄어쓰기로, 하이픈은 'HX-500'처럼 글자 사이가 아닐 때만 띄어쓰기로 바꾼다
+    s = re.sub(r"_+|(?<![0-9A-Za-z])-+|-+(?![0-9A-Za-z])", " ", s)
+    s = re.sub(r"\(\s*\)|\[\s*\]", " ", s)  # 날짜를 지우고 남은 빈 괄호
     s = re.sub(r"\s+", " ", s).strip(" .,:-")
     s = re.sub(r"\s*(?:건|송부|공유드립니다|보내드립니다)$", "", s).strip()
     return s or strip_prefixes(subject)
@@ -153,15 +155,29 @@ def cycle_from_file_tokens(names: list[str]) -> str | None:
 
 
 CATEGORY_RULES: list[tuple[str, list[str]]] = [
+    ("고객 대응", ["고객", "채터링", "클레임", "a/s", "현장", "방문", "가공"]),
+    ("품질·불량", ["불량", "필드", "알람", "결함", "회귀", "품질"]),
+    ("개발·릴리스", ["릴리스", "배포", "펌웨어", "빌드", "버전", "jenkins"]),
+    ("인증·안전", ["인증", "기능안전", "fmea", "iec", "안전"]),
     ("세무", ["세무", "부가세", "원천세", "세금", "신고"]),
     ("정산·회계", ["정산", "비용", "법인카드", "경비", "회계", "결산", "증빙"]),
     ("보고", ["보고", "주간", "월간", "실적", "회의록"]),
     ("구매·발주", ["발주", "구매", "견적", "사무용품", "주문서"]),
-    ("계약·거래처", ["계약", "갱신", "거래처", "협력사", "물류"]),
+    ("계약·거래처", ["계약", "갱신", "거래처", "협력사", "물류", "공급사", "호환성"]),
     ("IT·장비", ["노트북", "장비", "계정", "pc", "세팅", "it"]),
     ("인사·총무", ["입사", "퇴사", "교육", "채용", "총무", "복리후생"]),
-    ("프로젝트", ["프로젝트", "이전", "레이아웃", "구축", "도입"]),
+    ("프로젝트", ["프로젝트", "이전", "레이아웃", "구축", "도입", "전환", "시제품"]),
 ]
+
+
+AUTOMATED_RE = re.compile(
+    r"^(?:no-?reply|donotreply|do-not-reply|jenkins|ci|build|builds|alert|alerts|notification|notifications"
+    r"|notify|system|mailer-daemon|postmaster|monitor|bot)(?:[._+-][^@]*)?@", re.I)
+
+
+def is_automated(addr: str) -> bool:
+    """빌드 서버·알림처럼 사람이 아닌 발신자. 답장할 대상이 아니다."""
+    return bool(AUTOMATED_RE.match(addr))
 
 
 def categorize(text: str) -> str:
@@ -335,13 +351,21 @@ def analyze(
                         found.append(key)
         return found
 
-    def match_folder_for_subject(subject: str) -> list[str]:
+    all_folders = list(dict.fromkeys(f.folder for f in files))
+
+    def match_folder_for_subject(subject: str, group: list[Mail] | None = None) -> list[str]:
+        """제목에 폴더 이름이 들어 있거나, 상대방 소속(예: '세진모션')이 폴더 이름과 같으면 연결한다."""
         sc = _compact(clean_title(subject))
-        folders = {f.folder for f in files}
+        orgs = set()
+        for m in group or []:
+            for n, a in m.participants():
+                org = _split_name(n)[1]
+                if a != owner and org:
+                    orgs.add(_compact(org))
         hits = []
-        for fo in folders:
+        for fo in all_folders:
             label = _compact(folder_label(fo))
-            if len(label) >= 3 and label in sc:
+            if len(label) >= 3 and (label in sc or label in orgs):
                 hits.append(fo)
         return hits
 
@@ -364,7 +388,10 @@ def analyze(
             continue
         recurring_topics.add(k)
         latest = max(dated, key=lambda m: m.date)
-        rec_needs_reply = latest.date >= recent_from and latest.sender_email != owner
+        rec_needs_reply = (latest.date >= recent_from and latest.sender_email != owner
+                           and not is_automated(latest.sender_email))
+        inbound = [m for m in group if m.sender_email != owner]
+        all_auto = bool(inbound) and all(is_automated(m.sender_email) for m in inbound)
         sent = [m for m in group if m.sender_email == owner]
         direction = "보내는" if len(sent) >= len(group) / 2 else "받는"
         counterpart = people_of(sent if direction == "보내는" else group, 3)
@@ -375,7 +402,11 @@ def analyze(
         for g in matched:
             used_file_groups.add(g)
             used_files.update(f.path for f in file_groups[g])
-        desc = f"{cycle} {who}에게 {'메일을 보내는' if direction == '보내는' else '메일을 받아 처리하는'} 업무로 보입니다."
+        if all_auto:
+            desc = (f"{cycle} 자동 알림 메일이 옵니다(보낸 곳: {_split_name(inbound[0].sender_name)[0]}). "
+                    "알림을 확인하고 필요한 조치를 하는 업무로 보입니다.")
+        else:
+            desc = f"{cycle} {who}에게 {'메일을 보내는' if direction == '보내는' else '메일을 받아 처리하는'} 업무로 보입니다."
         if related_files:
             desc += f" 관련 파일 {len(related_files)}개가 같은 이름 규칙으로 쌓여 있습니다."
         if rec_needs_reply:
@@ -415,8 +446,8 @@ def analyze(
             continue
         last = dated[-1]
         is_recent = last.date >= recent_from
-        needs_reply = is_recent and last.sender_email != owner
-        folders = match_folder_for_subject(last.subject)
+        needs_reply = is_recent and last.sender_email != owner and not is_automated(last.sender_email)
+        folders = match_folder_for_subject(last.subject, group)
         folder_files = sorted(
             [f for f in files if f.folder in folders],
             key=lambda f: f.modified or base_date - timedelta(days=9999),

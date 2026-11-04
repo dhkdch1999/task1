@@ -325,7 +325,9 @@
   function stripDates(t) { DATE_TOKENS.forEach(function (r) { t = t.replace(r, " "); }); return t; }
   function cleanTitle(subject) {
     var s = stripPrefixes(subject).replace(TAG, " ");
-    s = stripDates(s).replace(/[_\-]+/g, " ").replace(/\s+/g, " ").replace(/^[ .,:\-]+|[ .,:\-]+$/g, "");
+    // 밑줄은 띄어쓰기로, 하이픈은 'HX-500'처럼 글자 사이가 아닐 때만 띄어쓰기로 바꾼다
+    s = stripDates(s).replace(/_+|(?<![0-9A-Za-z])-+|-+(?![0-9A-Za-z])/g, " ").replace(/\(\s*\)|\[\s*\]/g, " ")
+      .replace(/\s+/g, " ").replace(/^[ .,:\-]+|[ .,:\-]+$/g, "");
     s = s.replace(/\s*(?:건|송부|공유드립니다|보내드립니다)$/, "").trim();
     return s || stripPrefixes(subject);
   }
@@ -364,15 +366,21 @@
     return null;
   }
   var CATS = [
+    ["고객 대응", ["고객", "채터링", "클레임", "a/s", "현장", "방문", "가공"]],
+    ["품질·불량", ["불량", "필드", "알람", "결함", "회귀", "품질"]],
+    ["개발·릴리스", ["릴리스", "배포", "펌웨어", "빌드", "버전", "jenkins"]],
+    ["인증·안전", ["인증", "기능안전", "fmea", "iec", "안전"]],
     ["세무", ["세무", "부가세", "원천세", "세금", "신고"]],
     ["정산·회계", ["정산", "비용", "법인카드", "경비", "회계", "결산", "증빙"]],
     ["보고", ["보고", "주간", "월간", "실적", "회의록"]],
     ["구매·발주", ["발주", "구매", "견적", "사무용품", "주문서"]],
-    ["계약·거래처", ["계약", "갱신", "거래처", "협력사", "물류"]],
+    ["계약·거래처", ["계약", "갱신", "거래처", "협력사", "물류", "공급사", "호환성"]],
     ["IT·장비", ["노트북", "장비", "계정", "pc", "세팅", "it"]],
     ["인사·총무", ["입사", "퇴사", "교육", "채용", "총무", "복리후생"]],
-    ["프로젝트", ["프로젝트", "이전", "레이아웃", "구축", "도입"]],
+    ["프로젝트", ["프로젝트", "이전", "레이아웃", "구축", "도입", "전환", "시제품"]],
   ];
+  var AUTOMATED = /^(?:no-?reply|donotreply|do-not-reply|jenkins|ci|build|builds|alert|alerts|notification|notifications|notify|system|mailer-daemon|postmaster|monitor|bot)(?:[._+-][^@]*)?@/i;
+  function isAutomated(addr) { return AUTOMATED.test(addr); } // 빌드 서버·알림처럼 답장할 대상이 아닌 발신자
   function categorize(text) {
     var low = text.toLowerCase(), best = "기타", score = 0;
     CATS.forEach(function (c) { var s = c[1].filter(function (w) { return low.indexOf(w) >= 0; }).length; if (s > score) { best = c[0]; score = s; } });
@@ -452,9 +460,11 @@
       return found;
     }
     var allFolders = uniq(files.map(function (f) { return fileFolder(f.path); }));
-    function matchFolders(subject) {
-      var sc = compact(cleanTitle(subject));
-      return allFolders.filter(function (fo) { var l = compact(folderLabel(fo)); return l.length >= 3 && sc.indexOf(l) >= 0; });
+    // 제목에 폴더 이름이 들어 있거나, 상대방 소속(예: '세진모션')이 폴더 이름과 같으면 연결한다
+    function matchFolders(subject, grp) {
+      var sc = compact(cleanTitle(subject)), orgs = new Set();
+      (grp || []).forEach(function (m) { participants(m).forEach(function (x) { var o = splitName(x[0])[1]; if (x[1] !== owner && o) orgs.add(compact(o)); }); });
+      return allFolders.filter(function (fo) { var l = compact(folderLabel(fo)); return l.length >= 3 && (sc.indexOf(l) >= 0 || orgs.has(l)); });
     }
     function sender(m) { return splitName(m.senderName)[0]; }
 
@@ -472,14 +482,18 @@
       if (cycle === "비정기") return;
       recurring.add(k);
       var latest = dated.reduce(function (a, b) { return t(b.date) > t(a.date) ? b : a; });
-      var needsReply = latest.date >= recentFrom && latest.senderEmail !== owner;
+      var needsReply = latest.date >= recentFrom && latest.senderEmail !== owner && !isAutomated(latest.senderEmail);
+      var inbound = group.filter(function (m) { return m.senderEmail !== owner; });
+      var allAuto = inbound.length > 0 && inbound.every(function (m) { return isAutomated(m.senderEmail); });
       var sent = group.filter(function (m) { return m.senderEmail === owner; });
       var dir = sent.length >= group.length / 2 ? "보내는" : "받는";
       var cp = peopleOf(dir === "보내는" ? sent : group, 3);
       var who = cp.map(function (p) { return p.name; }).join(", ") || "관련 담당자";
       var rel = uniq([].concat.apply([], matched.map(function (g) { return fileGroups.get(g).map(function (f) { return f.path; }); }))).sort().reverse();
       matched.forEach(function (g) { usedGroups.add(g); fileGroups.get(g).forEach(function (f) { usedFiles.add(f.path); }); });
-      var desc = cycle + " " + who + "에게 " + (dir === "보내는" ? "메일을 보내는" : "메일을 받아 처리하는") + " 업무로 보입니다.";
+      var desc = allAuto
+        ? cycle + " 자동 알림 메일이 옵니다(보낸 곳: " + sender(inbound[0]) + "). 알림을 확인하고 필요한 조치를 하는 업무로 보입니다."
+        : cycle + " " + who + "에게 " + (dir === "보내는" ? "메일을 보내는" : "메일을 받아 처리하는") + " 업무로 보입니다.";
       if (rel.length) desc += " 관련 파일 " + rel.length + "개가 같은 이름 규칙으로 쌓여 있습니다.";
       if (needsReply) {
         var lt = snippet(latest.body);
@@ -501,8 +515,8 @@
       var dated = group.filter(function (m) { return m.date; }).sort(function (a, b) { return t(a.date) - t(b.date); });
       if (group.length < 2 || !dated.length) return;
       var last = dated[dated.length - 1];
-      var isRecent = last.date >= recentFrom, needsReply = isRecent && last.senderEmail !== owner;
-      var folders = matchFolders(last.subject);
+      var isRecent = last.date >= recentFrom, needsReply = isRecent && last.senderEmail !== owner && !isAutomated(last.senderEmail);
+      var folders = matchFolders(last.subject, group);
       var ff = files.filter(function (f) { return folders.indexOf(fileFolder(f.path)) >= 0; })
         .sort(function (a, b) { return (b.modified ? b.modified.getTime() : -1e15) - (a.modified ? a.modified.getTime() : -1e15); });
       var matched = matchAttachments(group);

@@ -15,14 +15,23 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent / "backend"))
 
-from app.sample_data import SAMPLE_OWNER, build_files_csv, build_mbox  # noqa: E402
+from app import sample_cnc, sample_data  # noqa: E402
+
+SAMPLES = [
+    (sample_data, "경영지원팀 사무직",
+     "가상의 경영지원팀 박지훈 대리의 메일 50건과 파일 80개입니다."),
+    (sample_cnc, "공작기계 제어개발",
+     "가상의 공작기계 회사 제어개발팀 정우진 책임연구원의 메일 50건과 파일 90개입니다. "
+     "펌웨어 릴리스, 필드 불량, 고객사 채터링 이슈, EtherCAT 전환 프로젝트가 들어 있어요."),
+]
 
 
 def build() -> tuple[str, str]:
     template = (HERE / "template.html").read_text(encoding="utf-8")
     engine = (HERE / "engine.js").read_text(encoding="utf-8")
-    sample = {**SAMPLE_OWNER, "mbox": build_mbox(), "csv": build_files_csv()}
-    sample_js = json.dumps(sample, ensure_ascii=False).replace("</", "<\\/")
+    samples = [{**mod.SAMPLE_OWNER, "label": label, "desc": desc, "mbox": mod.build_mbox(), "csv": mod.build_files_csv()}
+               for mod, label, desc in SAMPLES]
+    sample_js = json.dumps(samples, ensure_ascii=False).replace("</", "<\\/")
     page = template.replace("/*__ENGINE__*/", engine.replace("</script", "<\\/script")).replace(
         "/*__SAMPLE__*/null", sample_js)
     head, body = page.split("<!--BODY-->", 1)

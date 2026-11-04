@@ -213,11 +213,16 @@ def _files() -> list[tuple[str, datetime, int]]:
 
 
 def build_mbox() -> str:
+    return build_mbox_from(_mails(), D)
+
+
+def build_mbox_from(items: list[dict], domain: str) -> str:
+    """add()로 만든 메일 목록을 .mbox 텍스트로 바꾼다. 다른 샘플(sample_cnc)도 이 함수를 쓴다."""
     fd, path = tempfile.mkstemp(suffix=".mbox")
     os.close(fd)
     box = mailbox.mbox(path)
     ids: list[str] = []
-    for i, item in enumerate(_mails()):
+    for i, item in enumerate(items):
         msg = EmailMessage()
         msg["From"] = formataddr(item["frm"])
         msg["To"] = ", ".join(formataddr(x) for x in item["to"])
@@ -225,7 +230,7 @@ def build_mbox() -> str:
             msg["Cc"] = ", ".join(formataddr(x) for x in item["cc"])
         msg["Date"] = format_datetime(item["date"])
         msg["Subject"] = item["subject"]
-        mid = f"<sample-{i:03d}@{D}>"
+        mid = f"<sample-{i:03d}@{domain}>"
         msg["Message-ID"] = mid
         if item["reply_to"] is not None:
             msg["In-Reply-To"] = ids[item["reply_to"]]
@@ -244,10 +249,14 @@ def build_mbox() -> str:
 
 
 def build_files_csv() -> str:
+    return build_files_csv_from(_files())
+
+
+def build_files_csv_from(files: list[tuple[str, datetime, int]]) -> str:
     buf = io.StringIO()
     w = csv.writer(buf, lineterminator="\n")
     w.writerow(["FullName", "LastWriteTime", "Length"])
-    for path, date, size in _files():
+    for path, date, size in files:
         w.writerow([path.replace("/", "\\"), date.strftime("%Y-%m-%d %H:%M:%S"), size])
     return buf.getvalue()
 
