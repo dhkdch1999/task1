@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+
+# 로컬 DB (분석 결과가 들어 있으므로 올리지 않는다)
+backend/data/
+*.db
+
+# Node
+node_modules/
+frontend/dist/
+
+# 실제 업무 데이터는 절대 커밋하지 않는다 (sample/ 은 가상 데이터라 예외)
+*.pst
+*.ost
+uploads/
+
+# OS / 에디터
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
