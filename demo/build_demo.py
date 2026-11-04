@@ -3,7 +3,7 @@
 template.html 에 분석 엔진(engine.js)과 샘플 데이터를 넣어 파일 하나로 묶는다.
 설치 없이 index.html 을 더블클릭해서 열면 된다.
 
-    python demo/build_demo.py            # demo/index.html
+    python demo/build_demo.py            # demo/index.html + 루트 index.html (GitHub Pages)
     python demo/build_demo.py --fragment out.html   # <html>/<head> 없이 본문만 (호스팅용)
 """
 from __future__ import annotations
@@ -51,4 +51,6 @@ if __name__ == "__main__":
         print(f"{sys.argv[2]} 를 만들었습니다.")
     else:
         (HERE / "index.html").write_text(standalone, encoding="utf-8")
-        print("demo/index.html 을 만들었습니다.")
+        # 저장소 루트의 index.html 은 GitHub Pages(https://dhkdch1999.github.io/task1/)의 첫 화면이다
+        (HERE.parent / "index.html").write_text(standalone, encoding="utf-8")
+        print("demo/index.html 과 루트 index.html(GitHub Pages 첫 화면)을 만들었습니다.")

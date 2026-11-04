@@ -8,7 +8,9 @@
 
 ## 설치 없이 바로 써 보기
 
-[`demo/index.html`](demo/index.html)을 내려받아 **더블클릭**하면 브라우저에서 바로 열립니다. Python이나 Node.js 설치가 필요 없습니다.
+**https://dhkdch1999.github.io/task1/** 에서 바로 열립니다.
+또는 [`demo/index.html`](demo/index.html)을 내려받아 **더블클릭**해도 됩니다. Python이나 Node.js 설치가 필요 없습니다.
+(저장소 루트의 `index.html`이 GitHub Pages 첫 화면이며, `python demo/build_demo.py`가 `demo/index.html`과 함께 만듭니다.)
 
 1. **업무 메일**: `.eml`, `.mbox`, CSV 파일을 고르거나 끌어다 놓습니다. `.eml`이 든 폴더를 통째로 넣어도 됩니다.
 2. **업무 폴더**: D드라이브의 업무 폴더를 통째로 고르거나 끌어다 놓습니다. 파일 내용은 열지 않고 이름·수정일·크기만 봅니다.
