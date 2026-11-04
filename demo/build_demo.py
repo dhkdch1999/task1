@@ -1,6 +1,6 @@
 """브라우저 단독 실행 페이지(demo/index.html)를 만든다.
 
-template.html 에 분석 엔진(engine.js)과 샘플 데이터를 넣어 파일 하나로 묶는다.
+template.html 에 분석 엔진(engine.js), Word 생성기(docx.js), 샘플 데이터를 넣어 파일 하나로 묶는다.
 설치 없이 index.html 을 더블클릭해서 열면 된다.
 
     python demo/build_demo.py            # demo/index.html + 루트 index.html (GitHub Pages)
@@ -29,10 +29,12 @@ SAMPLES = [
 def build() -> tuple[str, str]:
     template = (HERE / "template.html").read_text(encoding="utf-8")
     engine = (HERE / "engine.js").read_text(encoding="utf-8")
+    docx = (HERE / "docx.js").read_text(encoding="utf-8")
     samples = [{**mod.SAMPLE_OWNER, "label": label, "desc": desc, "mbox": mod.build_mbox(), "csv": mod.build_files_csv()}
                for mod, label, desc in SAMPLES]
     sample_js = json.dumps(samples, ensure_ascii=False).replace("</", "<\\/")
     page = template.replace("/*__ENGINE__*/", engine.replace("</script", "<\\/script")).replace(
+        "/*__DOCX__*/", docx.replace("</script", "<\\/script")).replace(
         "/*__SAMPLE__*/null", sample_js)
     head, body = page.split("<!--BODY-->", 1)
     standalone = (

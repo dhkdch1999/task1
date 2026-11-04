@@ -348,6 +348,9 @@ td { border-bottom: 1px solid var(--line-2); padding: 8px 12px 8px 0; }
 /*__ENGINE__*/
 </script>
 <script>
+/*__DOCX__*/
+</script>
+<script>
 (function () {
   "use strict";
   var E = window.HandoverEngine;
@@ -571,6 +574,7 @@ td { border-bottom: 1px solid var(--line-2); padding: 8px 12px 8px 0; }
     var f = E.applyFilters(mails, files, filters());
     var r = E.analyze(f.mails, f.files, $("ownerEmail").value || null);
     r.stats.excluded = f.excluded;
+    state.wordMsg = null;
     state.result = r; state.dirty = false; state.edited = false; state.editing = null; state.confirmDel = null; state.openEv.clear(); state.copyText = null;
     state.nextId = r.cards.length + 1;
     renderResult();
@@ -630,7 +634,8 @@ td { border-bottom: 1px solid var(--line-2); padding: 8px 12px 8px 0; }
     var ex = r.stats.excluded || { mails: 0, files: 0 };
     var reply = r.cards.filter(function (c) { return c.needs_reply; }).length;
     var html = '<div class="result-head"><div><h2 id="resTitle">' + esc(title) + "</h2>" + (who ? "<p>" + esc(who) + "</p>" : "") + "</div>" +
-      '<div class="toolbar"><button type="button" class="btn" data-act="add">업무 추가</button><button type="button" class="btn btn-primary" data-act="copy">마크다운으로 복사</button></div></div>';
+      '<div class="toolbar"><button type="button" class="btn" data-act="add">업무 추가</button><button type="button" class="btn" data-act="copy">마크다운으로 복사</button><button type="button" class="btn btn-primary" data-act="word">Word로 내려받기</button></div></div>';
+    if (state.wordMsg) html += '<p class="toast" style="margin-top:10px" role="status">' + esc(state.wordMsg) + "</p>";
     html += '<div class="strip"><div><strong>' + r.cards.length + "</strong><span>찾은 업무</span></div><div><strong>" + n(r.stats.mails) + "</strong><span>분석한 메일</span></div><div><strong>" + n(r.stats.files) + '</strong><span>분석한 파일</span></div><div class="' + (reply ? "attn" : "") + '"><strong>' + reply + "</strong><span>답장 안 한 메일이 있는 업무</span></div>" +
       '<p class="strip-note">기준일 ' + esc(r.stats.base_date) + " (데이터 안의 가장 최근 날짜)" + (ex.mails || ex.files ? ". 메일 " + n(ex.mails) + "건과 파일 " + n(ex.files) + "개는 제외하고 분석했습니다." : "") + " 새로고침하면 초안이 사라지니 다 고친 뒤 복사해 두세요.</p></div>";
     if (state.copyText !== null) html += '<div class="copybox"><p class="toast" id="copyToast"></p><label class="field"><span>복사가 안 되면 아래 내용을 직접 선택해 복사하세요</span><textarea id="mdOut" readonly>' + esc(state.copyText) + "</textarea></label></div>";
@@ -680,6 +685,7 @@ td { border-bottom: 1px solid var(--line-2); padding: 8px 12px 8px 0; }
       var tf = $("e-title-" + nc.id); if (tf) { tf.focus(); tf.closest(".card").scrollIntoView({ block: "center" }); }
       return;
     }
+    if (act === "word") { downloadWord(); return; }
     if (act === "copy") {
       var md = toMarkdown();
       state.copyText = md;
@@ -708,6 +714,28 @@ td { border-bottom: 1px solid var(--line-2); padding: 8px 12px 8px 0; }
     renderResult();
     var el = $("card-" + c.id); if (el) el.scrollIntoView({ block: "nearest" });
   });
+
+  // ------------------------------------------------------------ Word 인수인계서
+  function docTitle() { return $("title").value.trim() || (($("owner").value.trim() || "나") + "의 인수인계"); }
+  function today() { return E.fmt(new Date()); }
+  function downloadWord() {
+    var r = state.result;
+    var bytes = window.HandoverDocx.build({
+      title: docTitle(), owner: $("owner").value.trim(), successor: $("successor").value.trim(),
+      baseDate: r.stats.base_date, writtenDate: today(),
+      stats: { mails: r.stats.mails, files: r.stats.files, excluded: r.stats.excluded },
+      cards: r.cards.filter(function (c) { return c.title; }), contacts: r.contacts,
+    });
+    var name = (docTitle().replace(/[\\/:*?"<>|]+/g, " ").trim() || "인수인계서") + "_" + today() + ".docx";
+    var blob = new Blob([bytes], { type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
+    var url = URL.createObjectURL(blob), a = document.createElement("a");
+    a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+    state.wordMsg = /claude\.ai$|claudeusercontent/.test(location.hostname)
+      ? "이 미리보기 화면에서는 파일 내려받기가 막혀 있습니다. GitHub 주소(dhkdch1999.github.io/task1/demo/index.html)에서 내려받아 주세요."
+      : "'" + name + "' 파일을 내려받았습니다. 내려받기 폴더에서 Word로 열어 보세요.";
+    renderResult();
+  }
 
   function toMarkdown() {
     var r = state.result, title = $("title").value.trim() || (($("owner").value.trim() || "나") + "의 인수인계");
