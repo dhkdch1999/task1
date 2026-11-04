@@ -1,0 +1,765 @@
+<title>인수인계 장부</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* 레이아웃: 위는 입력 책상(메일 · 업무 폴더 두 칸 + 제외 목록 + 생성 버튼), 아래는 장부(왼쪽 색인 탭 + 오른쪽 업무 카드).
+   형광펜 노랑은 '근거'와 '주의사항'에만 쓴다. 상태 색은 바인더 색인 탭에서 가져왔다. */
+:root {
+  --paper: #e9edf1; --sheet: #ffffff; --well: #f4f6f9;
+  --ink: #18222e; --ink-2: #4c5866; --ink-3: #7a8591;
+  --line: #d2d9e1; --line-2: #e5e9ee;
+  --bar: #1f4e79; --on-bar: #ffffff;
+  --accent: #1f4e79; --accent-hover: #173d60; --on-accent: #ffffff; --accent-soft: #e3ecf5;
+  --marker: #fbe68b; --marker-soft: #fdf4c4; --marker-line: #e9d47a; --marker-ink: #5c4a00;
+  --tab-active: #6a46c2; --tab-routine: #23786a; --tab-ref: #7d8794; --tab-done: #a7afb9; --on-tab: #ffffff;
+  --alert: #b8332b; --alert-soft: #fbeceb; --ok: #23786a; --ok-soft: #e2f1ed;
+  --shadow: 0 1px 0 #c9d1da, 0 2px 6px rgba(24, 34, 46, .06);
+  --font: "IBM Plex Sans KR", "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", system-ui, sans-serif;
+  --fs-0: .8125rem; --fs-1: .9375rem; --fs-2: 1.0625rem; --fs-3: 1.3125rem; --fs-4: 1.75rem; --fs-5: 2.25rem;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --paper: #11171e; --sheet: #1a222c; --well: #151c24;
+  --ink: #e4eaf0; --ink-2: #aab5c1; --ink-3: #7e8a97;
+  --line: #2e3a47; --line-2: #25303b;
+  --bar: #14304b; --on-bar: #eef3f8;
+  --accent: #74abe0; --accent-hover: #93bfe9; --on-accent: #0d1823; --accent-soft: #1d3146;
+  --marker: #6e5d17; --marker-soft: #2b2714; --marker-line: #5a4c16; --marker-ink: #f1dd8c;
+  --tab-active: #8f70e3; --tab-routine: #3ba08d; --tab-ref: #8792a0; --tab-done: #59636f; --on-tab: #0e141a;
+  --alert: #ee7066; --alert-soft: #3a1f1d; --ok: #4fb39f; --ok-soft: #173029;
+  --shadow: 0 1px 0 #0b1015, 0 2px 8px rgba(0, 0, 0, .3);
+  color-scheme: dark;
+} }
+:root[data-theme="dark"] {
+  --paper: #11171e; --sheet: #1a222c; --well: #151c24;
+  --ink: #e4eaf0; --ink-2: #aab5c1; --ink-3: #7e8a97;
+  --line: #2e3a47; --line-2: #25303b;
+  --bar: #14304b; --on-bar: #eef3f8;
+  --accent: #74abe0; --accent-hover: #93bfe9; --on-accent: #0d1823; --accent-soft: #1d3146;
+  --marker: #6e5d17; --marker-soft: #2b2714; --marker-line: #5a4c16; --marker-ink: #f1dd8c;
+  --tab-active: #8f70e3; --tab-routine: #3ba08d; --tab-ref: #8792a0; --tab-done: #59636f; --on-tab: #0e141a;
+  --alert: #ee7066; --alert-soft: #3a1f1d; --ok: #4fb39f; --ok-soft: #173029;
+  --shadow: 0 1px 0 #0b1015, 0 2px 8px rgba(0, 0, 0, .3);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(--font); font-size: var(--fs-1); line-height: 1.65; word-break: keep-all; overflow-wrap: anywhere; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bar); }
+h1, h2, h3, p { margin: 0; }
+h1, h2, h3 { line-height: 1.3; text-wrap: balance; }
+ul { margin: 0; padding: 0; list-style: none; }
+a { color: var(--accent); }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; transition: none !important; } }
+
+.gutter { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.wrap { max-width: 1180px; margin: 0 auto; }
+
+/* 상단 띠 */
+.topbar { background: var(--bar); color: var(--on-bar); padding-block: 14px; }
+.topbar .wrap { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.brand { display: inline-flex; align-items: center; gap: 10px; font-weight: 700; font-size: var(--fs-2); }
+.rings { width: 22px; height: 22px; margin-right: 10px; border-radius: 50%; border: 3px solid #fbe68b; box-shadow: 9px 0 0 -3px var(--bar), 9px 0 0 0 #fbe68b; flex: none; }
+.local-note { font-size: var(--fs-0); opacity: .85; display: inline-flex; align-items: center; gap: 6px; }
+.local-note::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: #6fd3bd; }
+
+main { padding-block: 28px 80px; }
+.intro h1 { font-size: clamp(1.6rem, 4vw, var(--fs-5)); letter-spacing: -.025em; font-weight: 700; }
+.intro p { margin-top: 10px; color: var(--ink-2); max-width: 66ch; }
+
+/* 버튼·입력 */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 40px; padding: 8px 16px; border: 1px solid var(--line); border-radius: 4px; background: var(--sheet); color: var(--ink); font: inherit; font-weight: 600; cursor: pointer; white-space: nowrap; text-decoration: none; }
+.btn:hover:not(:disabled) { border-color: var(--ink-3); }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.btn-primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.btn-primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
+.btn-small { min-height: 32px; padding: 4px 12px; font-size: var(--fs-0); }
+.btn-quiet { background: transparent; }
+.btn-danger { color: var(--alert); }
+.linkish { border: 0; background: none; padding: 0; color: var(--accent); font: inherit; font-size: var(--fs-0); font-weight: 600; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+input[type="text"], input[type="email"], select, textarea { width: 100%; padding: 9px 12px; border: 1px solid var(--line); border-radius: 4px; background: var(--well); color: var(--ink); font: inherit; }
+textarea { resize: vertical; line-height: 1.55; }
+input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); outline-offset: 0; border-color: var(--accent); }
+input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent); flex: none; margin: 3px 0 0; }
+.vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+label.field > span { display: block; margin-bottom: 6px; font-size: var(--fs-0); font-weight: 600; color: var(--ink-2); }
+.hint { font-size: var(--fs-0); color: var(--ink-3); }
+.muted { color: var(--ink-3); }
+
+/* 입력 책상 */
+.desk { margin-top: 24px; display: grid; gap: 16px; }
+.sample-note { display: flex; align-items: center; justify-content: space-between; gap: 12px 20px; flex-wrap: wrap; padding: 12px 18px; background: var(--marker-soft); border: 1px solid var(--marker-line); border-radius: 6px; color: var(--ink); }
+.sample-note p { font-size: var(--fs-0); }
+.sample-note strong { font-size: var(--fs-1); }
+.zones { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.zone { background: var(--sheet); border-radius: 6px; box-shadow: var(--shadow); padding: 20px; display: grid; gap: 12px; align-content: start; min-width: 0; }
+.zone h2 { font-size: var(--fs-2); display: flex; align-items: baseline; gap: 8px; }
+.zone h2 small { font-size: var(--fs-0); font-weight: 500; color: var(--ink-3); }
+.drop { border: 2px dashed var(--line); border-radius: 6px; padding: 22px 16px; text-align: center; background: var(--well); display: grid; gap: 10px; justify-items: center; transition: border-color .15s, background .15s; }
+.drop.over { border-color: var(--accent); background: var(--accent-soft); }
+.drop p { color: var(--ink-2); font-size: var(--fs-0); max-width: 40ch; }
+.drop .big { font-size: var(--fs-1); font-weight: 600; color: var(--ink); }
+.drop-buttons { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+.sources { display: grid; gap: 6px; }
+.source { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border: 1px solid var(--line-2); border-radius: 4px; font-size: var(--fs-0); }
+.source .name { font-weight: 600; flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.source .n { color: var(--ink-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tag-sample { font-size: .6875rem; font-weight: 700; padding: 0 6px; border-radius: 2px; background: var(--marker); color: var(--marker-ink); }
+.zone-msg { font-size: var(--fs-0); padding: 8px 12px; border-radius: 4px; background: var(--marker-soft); color: var(--ink); }
+.zone-msg.err { background: var(--alert-soft); color: var(--alert); }
+details.how summary { cursor: pointer; font-size: var(--fs-0); font-weight: 600; color: var(--accent); }
+details.how div { margin-top: 8px; font-size: var(--fs-0); color: var(--ink-2); display: grid; gap: 6px; }
+code { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-size: .75rem; background: var(--well); padding: 1px 4px; border-radius: 3px; word-break: break-all; }
+
+.panel { background: var(--sheet); border-radius: 6px; box-shadow: var(--shadow); padding: 20px; display: grid; gap: 14px; }
+.panel > h2 { font-size: var(--fs-2); }
+.info-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+.ex-grid { display: grid; grid-template-columns: 1.3fr 1fr; gap: 18px; }
+.ex-grid > div { min-width: 0; }
+.ex-grid h3 { font-size: var(--fs-1); margin-bottom: 2px; }
+.checks { margin-top: 8px; max-height: 300px; overflow: auto; border: 1px solid var(--line-2); border-radius: 4px; }
+.checks li + li { border-top: 1px solid var(--line-2); }
+.checks label { display: grid; grid-template-columns: 18px minmax(0, 1fr) auto; column-gap: 10px; padding: 9px 12px; cursor: pointer; font-size: var(--fs-0); }
+.checks input { grid-row: span 2; }
+.ck-main { font-weight: 600; }
+.ck-main span { font-weight: 400; color: var(--ink-3); }
+.ck-sub { grid-column: 2; color: var(--ink-3); font-size: .75rem; }
+.suggest { grid-column: 3; grid-row: 1; align-self: start; font-size: .6875rem; font-weight: 600; padding: 0 6px; border-radius: 2px; background: var(--marker); color: var(--marker-ink); white-space: nowrap; }
+
+.go { display: flex; align-items: center; gap: 14px 24px; flex-wrap: wrap; padding: 18px 20px; background: var(--sheet); border-radius: 6px; box-shadow: var(--shadow); border-top: 4px solid var(--accent); }
+.go .btn { min-height: 52px; padding: 12px 28px; font-size: var(--fs-2); }
+.go p { font-size: var(--fs-0); color: var(--ink-2); flex: 1 1 280px; }
+.go p strong { color: var(--ink); }
+.stale { color: var(--alert) !important; font-weight: 600; }
+
+/* 결과: 장부 */
+.result { margin-top: 44px; scroll-margin-top: 16px; }
+.result-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px 20px; flex-wrap: wrap; }
+.result-head h2 { font-size: var(--fs-4); letter-spacing: -.02em; }
+.result-head p { color: var(--ink-3); font-size: var(--fs-0); margin-top: 4px; }
+.toolbar { display: flex; gap: 8px; flex-wrap: wrap; }
+.strip { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 36px; margin-top: 18px; padding-block: 16px; border-top: 2px solid var(--ink); border-bottom: 1px solid var(--line); }
+.strip div { display: flex; flex-direction: column; }
+.strip strong { font-size: var(--fs-4); line-height: 1.1; font-variant-numeric: tabular-nums; }
+.strip span { font-size: var(--fs-0); color: var(--ink-2); }
+.strip .attn strong { color: var(--alert); }
+.strip-note { flex-basis: 100%; font-size: var(--fs-0); color: var(--ink-3); }
+.copybox { margin-top: 14px; }
+.copybox textarea { font-family: ui-monospace, Consolas, monospace; font-size: .75rem; height: 220px; }
+.toast { font-size: var(--fs-0); font-weight: 600; color: var(--ok); }
+
+.ledger { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 26px; align-items: start; margin-top: 24px; }
+.index { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 16px); display: grid; gap: 16px; max-height: calc(100vh - 32px); overflow: auto; }
+.ig { --tab: var(--tab-ref); }
+.ig-head { display: flex; justify-content: space-between; padding: 4px 10px; border-radius: 4px 4px 0 0; background: var(--tab); color: var(--on-tab); font-size: var(--fs-0); font-weight: 700; }
+.ig ul { border-left: 3px solid var(--tab); background: var(--sheet); }
+.ig a { display: flex; align-items: center; gap: 6px; padding: 8px 10px; color: var(--ink); text-decoration: none; font-size: var(--fs-0); line-height: 1.4; border-bottom: 1px solid var(--line-2); }
+.ig a:hover { background: var(--well); }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--alert); flex: none; }
+.st-active { --tab: var(--tab-active); } .st-routine { --tab: var(--tab-routine); } .st-ref { --tab: var(--tab-ref); } .st-done { --tab: var(--tab-done); }
+
+.cards { display: grid; gap: 16px; min-width: 0; }
+.card { position: relative; background: var(--sheet); border-radius: 6px; box-shadow: var(--shadow); padding: 22px 26px 20px 30px; scroll-margin-top: 16px; min-width: 0; }
+.card::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 6px; border-radius: 6px 0 0 6px; background: var(--tab); }
+.card-top { display: flex; gap: 12px; align-items: flex-start; }
+.card-top > div:first-child { flex: 1; min-width: 0; }
+.card h3 { font-size: var(--fs-3); letter-spacing: -.015em; }
+.card-actions { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
+.meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; margin-top: 6px; font-size: var(--fs-0); color: var(--ink-2); }
+.pill { padding: 1px 9px; border-radius: 2px; background: var(--tab); color: var(--on-tab); font-weight: 700; }
+.conf-low { color: var(--alert); } .conf-manual { color: var(--accent); }
+.reply { color: var(--alert); font-weight: 700; display: inline-flex; align-items: center; gap: 6px; }
+.reply::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--alert); }
+.desc { margin-top: 12px; max-width: 72ch; white-space: pre-line; }
+.label { font-size: var(--fs-0); font-weight: 700; color: var(--ink-2); margin-bottom: 4px; }
+.caution { margin-top: 14px; padding: 10px 14px; background: var(--marker-soft); border-left: 4px solid var(--marker); border-radius: 0 4px 4px 0; white-space: pre-line; }
+.caution-empty { display: block; width: 100%; margin-top: 14px; padding: 9px 14px; border: 1px dashed var(--marker-line); border-radius: 4px; background: transparent; color: var(--ink-2); font: inherit; font-size: var(--fs-0); text-align: left; cursor: pointer; }
+.caution-empty:hover { background: var(--marker-soft); }
+.cols { display: grid; grid-template-columns: 1.2fr 1fr; gap: 22px; margin-top: 16px; }
+.cols > div { min-width: 0; }
+.rows li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; padding: 6px 0; border-bottom: 1px solid var(--line-2); font-size: var(--fs-0); }
+.rows .a { font-weight: 600; }
+.rows .b { color: var(--ink-3); font-size: .75rem; }
+.ev-list { margin-top: 16px; }
+.ev-list ul { display: grid; gap: 4px; }
+.ev { display: grid; grid-template-columns: 30px minmax(0, 1fr) auto; gap: 8px; align-items: baseline; font-size: var(--fs-0); }
+.ev-k { font-size: .6875rem; font-weight: 700; color: var(--ink-3); }
+.ev-t { justify-self: start; padding: 0 2px; background: linear-gradient(transparent 52%, var(--marker) 52%, var(--marker) 92%, transparent 92%); -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+.ev.file .ev-t { background: linear-gradient(transparent 52%, var(--accent-soft) 52%, var(--accent-soft) 92%, transparent 92%); }
+.ev-d { color: var(--ink-3); font-size: .75rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ev-list .linkish { margin-top: 6px; }
+.editor { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 4px; }
+.editor .full { grid-column: 1 / -1; }
+.editor .mk textarea { background: var(--marker-soft); border-color: var(--marker-line); }
+.editor-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.confirm-del { margin-top: 12px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 14px; border-radius: 4px; background: var(--alert-soft); font-size: var(--fs-0); }
+
+.contacts { background: var(--sheet); border-radius: 6px; box-shadow: var(--shadow); padding: 22px 26px; scroll-margin-top: 16px; }
+.contacts h3 { font-size: var(--fs-3); }
+.table-wrap { overflow-x: auto; margin-top: 12px; }
+table { width: 100%; border-collapse: collapse; font-size: var(--fs-0); }
+th { text-align: left; color: var(--ink-2); border-bottom: 2px solid var(--ink); padding: 8px 12px 8px 0; white-space: nowrap; }
+td { border-bottom: 1px solid var(--line-2); padding: 8px 12px 8px 0; }
+.num { text-align: right; font-variant-numeric: tabular-nums; }
+.ext { margin-left: 6px; font-size: .6875rem; padding: 0 5px; border: 1px solid var(--line); border-radius: 2px; color: var(--ink-2); }
+.empty-result { background: var(--sheet); border-radius: 6px; box-shadow: var(--shadow); padding: 22px; display: grid; gap: 10px; justify-items: start; }
+
+@media (max-width: 900px) {
+  .zones, .ex-grid { grid-template-columns: 1fr; }
+  .info-grid { grid-template-columns: 1fr 1fr; }
+  .ledger { grid-template-columns: minmax(0, 1fr); }
+  .index { display: none; }
+}
+@media (max-width: 560px) {
+  .info-grid, .cols { grid-template-columns: 1fr; }
+  .editor { grid-template-columns: 1fr 1fr; }
+  .card { padding: 18px 16px 16px 22px; }
+  .card-top { flex-wrap: wrap; }
+  .card-actions { width: 100%; }
+  .strip { gap: 8px 22px; }
+  .strip strong { font-size: var(--fs-3); }
+  .ev { grid-template-columns: 30px minmax(0, 1fr); }
+  .ev-d { grid-column: 2; }
+  .go .btn { width: 100%; }
+  .contacts { padding: 18px 16px; }
+}
+</style>
+<!--BODY-->
+<header class="topbar gutter">
+  <div class="wrap">
+    <span class="brand"><span class="rings" aria-hidden="true"></span>인수인계 장부</span>
+    <span class="local-note">이 화면 안에서만 분석하고 어디에도 보내지 않습니다</span>
+  </div>
+</header>
+
+<main class="gutter">
+  <div class="wrap">
+    <section class="intro">
+      <h1>메일과 업무 폴더를 넣고 인수인계 초안을 만드세요</h1>
+      <p>업무 메일 파일과 업무 폴더를 넣고 <strong>인수인계 초안 생성</strong>을 누르면, 반복 업무와 진행 중인 일, 답장 안 한 메일, 연락할 사람을 찾아 정리합니다. 폴더는 파일 내용을 열지 않고 이름·수정일·크기만 봅니다.</p>
+    </section>
+
+    <section class="desk" aria-label="입력">
+      <div class="sample-note" id="sampleNote">
+        <div>
+          <strong>지금은 샘플 데이터가 들어 있어요.</strong>
+          <p>가상의 경영지원팀 박지훈 대리의 메일 50건과 파일 80개입니다. 내 파일을 넣으면 샘플은 자동으로 빠집니다.</p>
+        </div>
+        <button type="button" class="btn btn-small" id="clearSample">샘플 비우기</button>
+      </div>
+      <div class="sample-note" id="sampleAgain" hidden>
+        <p>어떻게 동작하는지 먼저 보고 싶다면 샘플로 체험해 보세요.</p>
+        <button type="button" class="btn btn-small" id="loadSample">샘플 데이터 넣기</button>
+      </div>
+
+      <div class="zones">
+        <section class="zone" aria-labelledby="mailTitle">
+          <h2 id="mailTitle">업무 메일 <small>.eml · .mbox · CSV</small></h2>
+          <div class="drop" id="mailDrop">
+            <p class="big">메일 파일이나 메일이 든 폴더를 여기에 끌어다 놓으세요</p>
+            <div class="drop-buttons">
+              <label class="btn btn-primary btn-small" for="mailFiles">메일 파일 고르기</label>
+              <label class="btn btn-small" for="mailDir">메일 폴더 고르기</label>
+            </div>
+            <input class="vh" type="file" id="mailFiles" multiple accept=".eml,.mbox,.csv,.txt">
+            <input class="vh" type="file" id="mailDir" webkitdirectory multiple>
+          </div>
+          <div class="sources" id="mailSources"></div>
+          <div id="mailMsg"></div>
+          <details class="how">
+            <summary>메일 파일은 어떻게 만드나요?</summary>
+            <div>
+              <p><strong>Outlook</strong>: 메일을 골라 <em>파일 → 다른 이름으로 저장</em>에서 형식을 선택하거나, 웹 Outlook에서 메일을 열고 <em>⋯ → 다운로드</em>하면 .eml이 생깁니다. 바탕화면으로 끌어 만든 .msg 파일은 아직 읽지 못합니다.</p>
+              <p><strong>Gmail</strong>: Google 테이크아웃에서 메일만 골라 받으면 .mbox 파일이 생깁니다.</p>
+              <p><strong>CSV</strong>: 제목, 보낸 사람, 받는 사람, 날짜, 첨부 열이 있는 표도 읽습니다.</p>
+            </div>
+          </details>
+        </section>
+
+        <section class="zone" aria-labelledby="folderTitle">
+          <h2 id="folderTitle">업무 폴더 <small>폴더 통째로 · 파일 목록 CSV</small></h2>
+          <div class="drop" id="folderDrop">
+            <p class="big">D드라이브의 업무 폴더를 여기에 끌어다 놓으세요</p>
+            <div class="drop-buttons">
+              <label class="btn btn-primary btn-small" for="folderDir">업무 폴더 고르기</label>
+              <label class="btn btn-small" for="folderCsv">파일 목록 CSV 고르기</label>
+            </div>
+            <input class="vh" type="file" id="folderDir" webkitdirectory multiple>
+            <input class="vh" type="file" id="folderCsv" multiple accept=".csv,.txt">
+            <p>브라우저가 "업로드" 확인 창을 띄워도 실제로는 아무것도 보내지 않습니다. 파일 내용도 열지 않습니다.</p>
+          </div>
+          <div class="sources" id="folderSources"></div>
+          <div id="folderMsg"></div>
+          <details class="how">
+            <summary>폴더가 너무 크면 어떻게 하나요?</summary>
+            <div>
+              <p>PowerShell에서 파일 목록만 CSV로 뽑아 <em>파일 목록 CSV 고르기</em>로 넣어도 됩니다.</p>
+              <code>Get-ChildItem D:\업무 -Recurse -File | Select-Object FullName, LastWriteTime, Length | Export-Csv files.csv -Encoding UTF8 -NoTypeInformation</code>
+            </div>
+          </details>
+        </section>
+      </div>
+
+      <section class="panel" aria-labelledby="infoTitle">
+        <h2 id="infoTitle">기본 정보</h2>
+        <div class="info-grid">
+          <label class="field"><span>인수인계 제목</span><input type="text" id="title" placeholder="예: 홍길동 대리 인수인계"></label>
+          <label class="field"><span>내 이름</span><input type="text" id="owner"></label>
+          <label class="field"><span>내 업무 메일 주소</span><input type="email" id="ownerEmail" placeholder="비우면 가장 많이 쓴 주소"></label>
+          <label class="field"><span>후임자 이름</span><input type="text" id="successor" placeholder="정해지지 않았다면 비워 두세요"></label>
+        </div>
+      </section>
+
+      <section class="panel" id="excludePanel" aria-labelledby="exTitle" hidden>
+        <h2 id="exTitle">분석에서 뺄 것</h2>
+        <p class="hint" id="exSummary"></p>
+        <div class="ex-grid">
+          <div>
+            <h3>보낸 사람</h3>
+            <p class="hint">체크한 사람이 보낸 메일은 분석하지 않습니다. 개인 메일로 보이는 것은 미리 체크해 두었어요.</p>
+            <ul class="checks" id="senderChecks"></ul>
+          </div>
+          <div>
+            <h3>폴더</h3>
+            <p class="hint">체크한 폴더 아래 파일은 분석하지 않습니다.</p>
+            <ul class="checks" id="folderChecks"></ul>
+            <label class="field" style="display:block;margin-top:14px"><span>제외할 단어 (쉼표로 구분)</span><input type="text" id="keywords" placeholder="예: 연봉, 건강검진"></label>
+          </div>
+        </div>
+      </section>
+
+      <div class="go">
+        <button type="button" class="btn btn-primary" id="generate" disabled>인수인계 초안 생성</button>
+        <p id="goNote">먼저 메일이나 업무 폴더를 넣어 주세요.</p>
+      </div>
+    </section>
+
+    <section class="result" id="result" hidden aria-labelledby="resTitle"></section>
+  </div>
+</main>
+
+<script>
+/*__ENGINE__*/
+</script>
+<script>
+(function () {
+  "use strict";
+  var E = window.HandoverEngine;
+  var SAMPLE = /*__SAMPLE__*/null;
+  var MAX_FILE = 300 * 1024 * 1024, MAX_FOLDER_FILES = 200000;
+  var $ = function (id) { return document.getElementById(id); };
+  function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
+  function n(x) { return Number(x).toLocaleString("ko-KR"); }
+
+  var state = {
+    mailSources: [], fileSources: [], sample: false,
+    senderOverride: new Map(), folderOverride: new Map(),
+    preview: null, result: null, dirty: false, edited: false,
+    editing: null, confirmDel: null, openEv: new Set(), copyText: null,
+  };
+
+  // ------------------------------------------------------------ 입력
+  function allMails() { return [].concat.apply([], state.mailSources.map(function (s) { return s.mails; })); }
+  function allFiles() { return [].concat.apply([], state.fileSources.map(function (s) { return s.files; })); }
+
+  function leaveSample() {
+    if (!state.sample) return;
+    state.mailSources = []; state.fileSources = []; state.sample = false;
+    state.senderOverride.clear(); state.folderOverride.clear();
+    ["title", "owner", "ownerEmail", "successor"].forEach(function (id) { $(id).value = ""; });
+  }
+
+  function readText(file) {
+    return new Promise(function (resolve, reject) {
+      var r = new FileReader();
+      r.onload = function () { resolve(String(r.result || "")); };
+      r.onerror = function () { reject(new Error(file.name)); };
+      r.readAsText(file, "utf-8");
+    });
+  }
+
+  function isJunk(name) { return /^\.|^~\$|^thumbs\.db$|^desktop\.ini$/i.test(name); }
+
+  async function addMailFiles(items) {
+    var msgs = [], added = 0, skipped = [];
+    leaveSample();
+    for (var i = 0; i < items.length; i++) {
+      var f = items[i].file, name = items[i].path || f.name, low = f.name.toLowerCase();
+      if (isJunk(f.name)) continue;
+      if (/\.msg$/.test(low)) { skipped.push(f.name); continue; }
+      if (!/\.(eml|mbox|csv|txt)$/.test(low) && !/^mbox$/i.test(f.name)) continue;
+      if (f.size > MAX_FILE) { msgs.push("'" + f.name + "'은(는) 300MB가 넘어 건너뛰었습니다. 기간을 나눠 내보내 주세요."); continue; }
+      try {
+        var mails = E.parseMailSource(f.name, await readText(f));
+        if (!mails.length) { msgs.push("'" + f.name + "'에서 메일을 찾지 못했습니다."); continue; }
+        state.mailSources.push({ name: name, mails: mails });
+        added += mails.length;
+      } catch (e) { msgs.push("'" + f.name + "'을(를) 읽지 못했습니다."); }
+    }
+    if (skipped.length) msgs.push("Outlook .msg 파일 " + skipped.length + "개는 아직 읽지 못합니다. .eml로 저장해 주세요.");
+    if (!added && !msgs.length) msgs.push("메일 파일(.eml, .mbox, .csv)을 찾지 못했습니다.");
+    setMsg("mailMsg", msgs);
+    changed();
+  }
+
+  async function addFolderItems(items, label) {
+    var msgs = [], files = [], lists = 0;
+    leaveSample();
+    for (var i = 0; i < items.length; i++) {
+      var it = items[i], f = it.file;
+      if (isJunk(f.name)) continue;
+      if (it.listFile) {
+        try {
+          var parsed = E.parseFileList(f.name, await readText(f));
+          if (parsed.length) { state.fileSources.push({ name: f.name, files: parsed }); lists++; }
+          else msgs.push("'" + f.name + "'에서 파일 목록을 찾지 못했습니다. 경로 열이 있는 CSV인지 확인해 주세요.");
+        } catch (e) { msgs.push("'" + f.name + "'을(를) 읽지 못했습니다."); }
+        continue;
+      }
+      if (files.length >= MAX_FOLDER_FILES) { msgs.push("파일이 " + n(MAX_FOLDER_FILES) + "개가 넘어 나머지는 건너뛰었습니다."); break; }
+      files.push({ path: (it.path || f.webkitRelativePath || f.name).replace(/\\/g, "/"), modified: f.lastModified ? new Date(f.lastModified) : null, size: f.size });
+    }
+    if (files.length) state.fileSources.push({ name: label || files[0].path.split("/")[0], files: files, folder: true });
+    if (!files.length && !lists && !msgs.length) msgs.push("파일을 찾지 못했습니다.");
+    setMsg("folderMsg", msgs);
+    changed();
+  }
+
+  function setMsg(id, msgs) {
+    $(id).innerHTML = msgs.map(function (m) { return '<p class="zone-msg">' + esc(m) + "</p>"; }).join("");
+  }
+
+  // 끌어다 놓은 폴더를 끝까지 따라 들어간다 (파일 내용은 읽지 않고 File 객체만 얻는다)
+  async function collectDrop(dt) {
+    var entries = Array.from(dt.items || []).map(function (i) { return i.webkitGetAsEntry ? i.webkitGetAsEntry() : null; }).filter(Boolean);
+    if (!entries.length) return Array.from(dt.files || []).map(function (f) { return { file: f, path: f.name }; });
+    var out = [];
+    async function walk(entry, prefix) {
+      if (out.length > MAX_FOLDER_FILES) return;
+      if (entry.isFile) {
+        var file = await new Promise(function (res, rej) { entry.file(res, rej); });
+        out.push({ file: file, path: prefix + entry.name });
+      } else if (entry.isDirectory) {
+        var reader = entry.createReader(), batch;
+        do {
+          batch = await new Promise(function (res, rej) { reader.readEntries(res, rej); });
+          for (var i = 0; i < batch.length; i++) await walk(batch[i], prefix + entry.name + "/");
+        } while (batch.length);
+      }
+    }
+    for (var i = 0; i < entries.length; i++) await walk(entries[i], "");
+    return out;
+  }
+
+  function setupDrop(zoneId, onItems) {
+    var z = $(zoneId), depth = 0;
+    z.addEventListener("dragenter", function (e) { e.preventDefault(); depth++; z.classList.add("over"); });
+    z.addEventListener("dragover", function (e) { e.preventDefault(); });
+    z.addEventListener("dragleave", function () { if (--depth <= 0) { depth = 0; z.classList.remove("over"); } });
+    z.addEventListener("drop", async function (e) {
+      e.preventDefault(); depth = 0; z.classList.remove("over");
+      try { onItems(await collectDrop(e.dataTransfer)); }
+      catch (err) { setMsg(zoneId === "mailDrop" ? "mailMsg" : "folderMsg", ["끌어다 놓은 항목을 읽지 못했습니다. 버튼으로 골라 주세요."]); }
+    });
+  }
+  setupDrop("mailDrop", function (items) { addMailFiles(items); });
+  setupDrop("folderDrop", function (items) {
+    var lists = items.filter(function (it) { return it.path.indexOf("/") < 0 && /\.(csv|txt)$/i.test(it.file.name); });
+    if (lists.length === items.length) addFolderItems(lists.map(function (it) { return { file: it.file, listFile: true }; }));
+    else addFolderItems(items.filter(function (it) { return lists.indexOf(it) < 0; }));
+  });
+  window.addEventListener("dragover", function (e) { e.preventDefault(); });
+  window.addEventListener("drop", function (e) { e.preventDefault(); });
+
+  $("mailFiles").addEventListener("change", function (e) { addMailFiles(Array.from(e.target.files).map(function (f) { return { file: f, path: f.name }; })); e.target.value = ""; });
+  $("mailDir").addEventListener("change", function (e) { addMailFiles(Array.from(e.target.files).map(function (f) { return { file: f, path: f.webkitRelativePath || f.name }; })); e.target.value = ""; });
+  $("folderDir").addEventListener("change", function (e) { addFolderItems(Array.from(e.target.files).map(function (f) { return { file: f, path: f.webkitRelativePath || f.name }; })); e.target.value = ""; });
+  $("folderCsv").addEventListener("change", function (e) { addFolderItems(Array.from(e.target.files).map(function (f) { return { file: f, listFile: true }; })); e.target.value = ""; });
+
+  function renderSources() {
+    function row(s, kind, i) {
+      var count = kind === "mail" ? n(s.mails.length) + "건" : n(s.files.length) + "개";
+      return '<div class="source"><span class="name">' + esc(s.name) + (s.folder ? " (폴더)" : "") + "</span>" +
+        (state.sample ? '<span class="tag-sample">샘플</span>' : "") +
+        '<span class="n">' + count + '</span><button type="button" class="btn btn-small btn-quiet" data-remove="' + kind + ":" + i + '">빼기</button></div>';
+    }
+    $("mailSources").innerHTML = state.mailSources.map(function (s, i) { return row(s, "mail", i); }).join("");
+    $("folderSources").innerHTML = state.fileSources.map(function (s, i) { return row(s, "file", i); }).join("");
+    $("sampleNote").hidden = !state.sample;
+    $("sampleAgain").hidden = state.sample || state.mailSources.length > 0 || state.fileSources.length > 0;
+  }
+  document.addEventListener("click", function (e) {
+    var b = e.target.closest("[data-remove]");
+    if (!b) return;
+    var p = b.getAttribute("data-remove").split(":");
+    (p[0] === "mail" ? state.mailSources : state.fileSources).splice(+p[1], 1);
+    if (!state.mailSources.length && !state.fileSources.length) state.sample = false;
+    changed();
+  });
+
+  // ------------------------------------------------------------ 제외 목록
+  function renderExclude() {
+    var mails = allMails(), files = allFiles();
+    if (!mails.length && !files.length) { state.preview = null; $("excludePanel").hidden = true; return; }
+    var pv = E.preview(mails, files, $("ownerEmail").value);
+    state.preview = pv;
+    $("excludePanel").hidden = false;
+    $("exSummary").textContent = "메일 " + n(pv.mail_count) + "건" + (pv.date_range ? " (" + pv.date_range[0] + " ~ " + pv.date_range[1] + ")" : "") +
+      ", 파일 " + n(pv.file_count) + "개를 읽었습니다." + (pv.owner_email ? " 내 메일 주소는 " + pv.owner_email + "(으)로 보고 분석합니다." : "") +
+      (pv.undated ? " 날짜가 없는 메일 " + pv.undated + "건은 반복 주기 분석에서 빠집니다." : "");
+    $("senderChecks").innerHTML = pv.senders.length ? pv.senders.map(function (s, i) {
+      var on = state.senderOverride.has(s.email) ? state.senderOverride.get(s.email) : s.suggest_exclude;
+      return '<li><label><input type="checkbox" id="snd' + i + '" data-sender="' + esc(s.email) + '"' + (on ? " checked" : "") + '>' +
+        '<span class="ck-main">' + esc(s.name) + " <span>" + esc(s.email) + "</span></span>" +
+        '<span class="ck-sub">' + n(s.count) + "건, 예: " + esc(s.sample_subject) + "</span>" +
+        (s.suggest_exclude ? '<span class="suggest">개인 메일로 보임</span>' : "") + "</label></li>";
+    }).join("") : '<li><label><span></span><span class="ck-sub">메일이 없습니다.</span></label></li>';
+    $("folderChecks").innerHTML = pv.folders.length ? pv.folders.map(function (f, i) {
+      var on = state.folderOverride.has(f.path) ? state.folderOverride.get(f.path) : f.suggest_exclude;
+      return '<li><label><input type="checkbox" id="fld' + i + '" data-folder="' + esc(f.path) + '"' + (on ? " checked" : "") + '>' +
+        '<span class="ck-main">' + esc(f.path || "(최상위)") + '</span><span class="ck-sub">' + n(f.count) + "개</span>" +
+        (f.suggest_exclude ? '<span class="suggest">개인 폴더로 보임</span>' : "") + "</label></li>";
+    }).join("") : '<li><label><span></span><span class="ck-sub">파일이 없습니다.</span></label></li>';
+    if (!$("ownerEmail").value && pv.owner_email) $("ownerEmail").placeholder = pv.owner_email + " (자동으로 찾음)";
+  }
+  document.addEventListener("change", function (e) {
+    var t = e.target;
+    if (t.hasAttribute && t.hasAttribute("data-sender")) { state.senderOverride.set(t.getAttribute("data-sender"), t.checked); markDirty(); }
+    if (t.hasAttribute && t.hasAttribute("data-folder")) { state.folderOverride.set(t.getAttribute("data-folder"), t.checked); markDirty(); }
+  });
+  $("keywords").addEventListener("input", markDirty);
+  $("ownerEmail").addEventListener("change", function () { renderExclude(); markDirty(); });
+
+  function filters() {
+    var pv = state.preview;
+    return {
+      excludeSenders: pv.senders.filter(function (s) { return state.senderOverride.has(s.email) ? state.senderOverride.get(s.email) : s.suggest_exclude; }).map(function (s) { return s.email; }),
+      excludeFolders: pv.folders.filter(function (f) { return state.folderOverride.has(f.path) ? state.folderOverride.get(f.path) : f.suggest_exclude; }).map(function (f) { return f.path; }),
+      excludeKeywords: $("keywords").value.split(",").map(function (k) { return k.trim(); }).filter(Boolean),
+    };
+  }
+
+  function markDirty() { if (state.result) state.dirty = true; renderGo(); }
+  function changed() { renderSources(); renderExclude(); markDirty(); }
+
+  function renderGo() {
+    var has = allMails().length || allFiles().length;
+    $("generate").disabled = !has;
+    $("generate").textContent = state.result ? "인수인계 초안 다시 생성" : "인수인계 초안 생성";
+    var note = $("goNote");
+    note.className = "";
+    if (!has) note.textContent = "먼저 메일이나 업무 폴더를 넣어 주세요.";
+    else if (state.result && state.dirty) {
+      note.className = "stale";
+      note.textContent = "입력이 바뀌었어요. 다시 생성하면 아래 초안에 반영됩니다." + (state.edited ? " 아래에서 고친 내용은 사라집니다." : "");
+    } else if (state.result) note.textContent = "아래 초안을 검토하고 고쳐 주세요. 다 고쳤으면 마크다운으로 복사해 문서나 메일에 붙여 넣을 수 있어요.";
+    else note.innerHTML = "메일 <strong>" + n(allMails().length) + "건</strong>과 파일 <strong>" + n(allFiles().length) + "개</strong>로 초안을 만듭니다. 몇 초면 끝나요.";
+  }
+
+  // ------------------------------------------------------------ 생성
+  function generate(scroll) {
+    var mails = allMails(), files = allFiles();
+    if (!mails.length && !files.length) return;
+    renderExclude();
+    var f = E.applyFilters(mails, files, filters());
+    var r = E.analyze(f.mails, f.files, $("ownerEmail").value || null);
+    r.stats.excluded = f.excluded;
+    state.result = r; state.dirty = false; state.edited = false; state.editing = null; state.confirmDel = null; state.openEv.clear(); state.copyText = null;
+    state.nextId = r.cards.length + 1;
+    renderResult();
+    renderGo();
+    if (scroll) $("result").scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+  $("generate").addEventListener("click", function () { generate(true); });
+
+  // ------------------------------------------------------------ 결과
+  var STATUS = ["진행 중", "정기", "참고", "완료"], CYCLES = ["매일", "매주", "매월", "분기", "비정기"];
+  var ST_CLASS = { "진행 중": "st-active", "정기": "st-routine", "참고": "st-ref", "완료": "st-done" };
+  var CONF = { high: "근거 충분", medium: "근거 보통", low: "근거 적음, 확인 필요", manual: "직접 추가" };
+  function base(p) { return p.split("/").pop(); }
+  function dir(p) { var i = p.lastIndexOf("/"); return i > 0 ? p.slice(0, i) : ""; }
+
+  function cardHtml(c) {
+    var h = '<article class="card ' + ST_CLASS[c.status] + '" id="card-' + c.id + '">';
+    if (state.editing === c.id) {
+      h += '<form class="editor" data-form="' + c.id + '">' +
+        '<label class="field full"><span>업무명</span><input type="text" id="e-title-' + c.id + '" name="title" value="' + esc(c.title) + '" required></label>' +
+        '<label class="field"><span>상태</span><select id="e-status-' + c.id + '" name="status">' + STATUS.map(function (s) { return "<option" + (s === c.status ? " selected" : "") + ">" + s + "</option>"; }).join("") + "</select></label>" +
+        '<label class="field"><span>주기</span><select id="e-cycle-' + c.id + '" name="cycle">' + CYCLES.map(function (s) { return "<option" + (s === c.cycle ? " selected" : "") + ">" + s + "</option>"; }).join("") + "</select></label>" +
+        '<label class="field"><span>분류</span><input type="text" id="e-cat-' + c.id + '" name="category" value="' + esc(c.category) + '"></label>' +
+        '<label class="field full"><span>업무 설명</span><textarea id="e-desc-' + c.id + '" name="description" rows="4">' + esc(c.description) + "</textarea></label>" +
+        '<label class="field full mk"><span>주의사항</span><textarea id="e-caution-' + c.id + '" name="caution" rows="3" placeholder="실수하기 쉬운 부분, 마감, 꼭 확인할 사람 등을 적어 주세요">' + esc(c.caution) + "</textarea></label>" +
+        '<label class="field full"><span>관련 파일 (한 줄에 하나)</span><textarea id="e-files-' + c.id + '" name="files" rows="3">' + esc(c.related_files.join("\n")) + "</textarea></label>" +
+        '<label class="field full"><span>관련 담당자 (한 줄에 "이름, 소속, 메일")</span><textarea id="e-people-' + c.id + '" name="people" rows="3">' + esc(c.related_people.map(function (p) { return [p.name, p.org || "", p.email || ""].join(", "); }).join("\n")) + "</textarea></label>" +
+        '<div class="editor-actions full"><button type="button" class="btn btn-quiet" data-act="cancel">취소</button><button type="submit" class="btn btn-primary">저장하기</button></div></form></article>';
+      return h;
+    }
+    h += '<div class="card-top"><div><h3>' + esc(c.title) + '</h3><div class="meta"><span class="pill">' + esc(c.status) + "</span>" +
+      (c.cycle !== "비정기" ? "<span>" + esc(c.cycle) + "</span>" : "") + "<span>" + esc(c.category) + "</span>" +
+      '<span class="conf-' + c.confidence + '">' + CONF[c.confidence] + "</span>" +
+      (c.needs_reply ? '<span class="reply">답장 안 한 메일 있음</span>' : "") + "</div></div>" +
+      '<div class="card-actions"><button type="button" class="btn btn-small" data-act="edit" data-id="' + c.id + '">수정</button>' +
+      '<button type="button" class="btn btn-small btn-quiet" data-act="ask-del" data-id="' + c.id + '">삭제</button></div></div>';
+    if (state.confirmDel === c.id) h += '<div class="confirm-del" role="alert"><span>이 업무 카드를 지울까요?</span><button type="button" class="btn btn-small btn-danger" data-act="del" data-id="' + c.id + '">지우기</button><button type="button" class="btn btn-small btn-quiet" data-act="keep">그대로 두기</button></div>';
+    if (c.description) h += '<p class="desc">' + esc(c.description) + "</p>";
+    h += c.caution ? '<div class="caution"><div class="label">주의사항</div>' + esc(c.caution) + "</div>"
+      : '<button type="button" class="caution-empty" data-act="edit" data-id="' + c.id + '">주의사항을 적어 두면 후임자가 실수를 덜 합니다. 적으러 가기</button>';
+    h += '<div class="cols"><div><div class="label">관련 파일</div>' + (c.related_files.length ? '<ul class="rows">' + c.related_files.map(function (p) { return '<li><span class="a">' + esc(base(p)) + '</span><span class="b">' + esc(dir(p)) + "</span></li>"; }).join("") + "</ul>" : '<p class="hint">연결된 파일이 없습니다.</p>') + "</div>" +
+      '<div><div class="label">관련 담당자</div>' + (c.related_people.length ? '<ul class="rows">' + c.related_people.map(function (p) { return '<li><span class="a">' + esc(p.name) + "</span>" + (p.org ? '<span class="b">' + esc(p.org) + "</span>" : "") + (p.email ? '<span class="b">' + esc(p.email) + "</span>" : "") + "</li>"; }).join("") + "</ul>" : '<p class="hint">연결된 담당자가 없습니다.</p>') + "</div></div>";
+    if (c.evidence.length) {
+      var open = state.openEv.has(c.id), shown = open ? c.evidence : c.evidence.slice(0, 2);
+      h += '<div class="ev-list"><div class="label">이렇게 판단한 근거</div><ul>' + shown.map(function (e) {
+        return '<li class="ev ' + e.kind + '"><span class="ev-k">' + (e.kind === "mail" ? "메일" : "파일") + '</span><span class="ev-t">' + esc(e.label) + "</span>" + (e.date ? '<span class="ev-d">' + e.date + "</span>" : "") + "</li>";
+      }).join("") + "</ul>" + (c.evidence.length > 2 ? '<button type="button" class="linkish" data-act="ev" data-id="' + c.id + '">' + (open ? "근거 접기" : "근거 " + (c.evidence.length - 2) + "개 더 보기") + "</button>" : "") + "</div>";
+    }
+    return h + "</article>";
+  }
+
+  function renderResult() {
+    var r = state.result, el = $("result");
+    el.hidden = false;
+    var title = $("title").value.trim() || (($("owner").value.trim() || "나") + "의 인수인계");
+    var who = [$("owner").value.trim() ? $("owner").value.trim() + "님이 작성" : "", $("successor").value.trim() ? "후임자 " + $("successor").value.trim() + "님" : ""].filter(Boolean).join(", ");
+    var ex = r.stats.excluded || { mails: 0, files: 0 };
+    var reply = r.cards.filter(function (c) { return c.needs_reply; }).length;
+    var html = '<div class="result-head"><div><h2 id="resTitle">' + esc(title) + "</h2>" + (who ? "<p>" + esc(who) + "</p>" : "") + "</div>" +
+      '<div class="toolbar"><button type="button" class="btn" data-act="add">업무 추가</button><button type="button" class="btn btn-primary" data-act="copy">마크다운으로 복사</button></div></div>';
+    html += '<div class="strip"><div><strong>' + r.cards.length + "</strong><span>찾은 업무</span></div><div><strong>" + n(r.stats.mails) + "</strong><span>분석한 메일</span></div><div><strong>" + n(r.stats.files) + '</strong><span>분석한 파일</span></div><div class="' + (reply ? "attn" : "") + '"><strong>' + reply + "</strong><span>답장 안 한 메일이 있는 업무</span></div>" +
+      '<p class="strip-note">기준일 ' + esc(r.stats.base_date) + " (데이터 안의 가장 최근 날짜)" + (ex.mails || ex.files ? ". 메일 " + n(ex.mails) + "건과 파일 " + n(ex.files) + "개는 제외하고 분석했습니다." : "") + " 새로고침하면 초안이 사라지니 다 고친 뒤 복사해 두세요.</p></div>";
+    if (state.copyText !== null) html += '<div class="copybox"><p class="toast" id="copyToast"></p><label class="field"><span>복사가 안 되면 아래 내용을 직접 선택해 복사하세요</span><textarea id="mdOut" readonly>' + esc(state.copyText) + "</textarea></label></div>";
+    if (!r.cards.length) {
+      html += '<div class="empty-result" style="margin-top:20px"><p>찾은 업무가 없습니다. 제외 필터를 너무 많이 걸었거나, 메일에 날짜가 없거나, 반복되는 흔적이 아직 적을 수 있어요.</p><button type="button" class="btn" data-act="add">업무 직접 추가하기</button></div>';
+    } else {
+      html += '<div class="ledger"><nav class="index" aria-label="업무 목록">';
+      STATUS.forEach(function (s) {
+        var cs = r.cards.filter(function (c) { return c.status === s; });
+        if (!cs.length) return;
+        html += '<div class="ig ' + ST_CLASS[s] + '"><div class="ig-head">' + s + "<span>" + cs.length + "</span></div><ul>" +
+          cs.map(function (c) { return '<li><a href="#card-' + c.id + '" data-jump="card-' + c.id + '">' + esc(c.title) + (c.needs_reply ? '<span class="dot" aria-label="답장 안 한 메일 있음"></span>' : "") + "</a></li>"; }).join("") + "</ul></div>";
+      });
+      if (r.contacts.length) html += '<a class="ig" href="#contacts" data-jump="contacts" style="font-size:var(--fs-0);font-weight:600;padding:8px 10px;border:1px dashed var(--line);border-radius:4px;text-decoration:none">업무 연락처 ' + r.contacts.length + "명</a>";
+      html += '</nav><div class="cards">' + r.cards.map(cardHtml).join("");
+      if (r.contacts.length) {
+        html += '<section class="contacts" id="contacts"><h3>업무 연락처</h3><p class="hint">메일을 주고받은 횟수가 많은 순서입니다.</p><div class="table-wrap"><table><thead><tr><th scope="col">이름</th><th scope="col">소속</th><th scope="col">메일</th><th scope="col" class="num">주고받은 메일</th></tr></thead><tbody>' +
+          r.contacts.map(function (p) { return "<tr><td>" + esc(p.name) + "</td><td>" + esc(p.org) + (p.internal ? "" : '<span class="ext">외부</span>') + "</td><td>" + esc(p.email) + '</td><td class="num">' + n(p.count) + "건</td></tr>"; }).join("") +
+          "</tbody></table></div></section>";
+      }
+      html += "</div></div>";
+    }
+    el.innerHTML = html;
+  }
+
+  function findCard(id) { return state.result.cards.filter(function (c) { return c.id === id; })[0]; }
+
+  $("result").addEventListener("click", function (e) {
+    var j = e.target.closest("[data-jump]");
+    if (j) { e.preventDefault(); var t = $(j.getAttribute("data-jump")); if (t) t.scrollIntoView({ behavior: "smooth", block: "start" }); return; }
+    var b = e.target.closest("[data-act]");
+    if (!b) return;
+    var act = b.getAttribute("data-act"), id = +b.getAttribute("data-id");
+    if (act === "edit") { state.editing = id; state.confirmDel = null; renderResult(); var f = $("e-title-" + id); if (f) { f.focus(); f.closest(".card").scrollIntoView({ block: "nearest" }); } return; }
+    if (act === "cancel") {
+      var c0 = findCard(state.editing);
+      if (c0 && c0._new) state.result.cards = state.result.cards.filter(function (c) { return c !== c0; });
+      state.editing = null; renderResult(); return;
+    }
+    if (act === "ask-del") { state.confirmDel = id; renderResult(); return; }
+    if (act === "keep") { state.confirmDel = null; renderResult(); return; }
+    if (act === "del") { state.result.cards = state.result.cards.filter(function (c) { return c.id !== id; }); state.confirmDel = null; state.edited = true; renderResult(); return; }
+    if (act === "ev") { if (state.openEv.has(id)) state.openEv.delete(id); else state.openEv.add(id); renderResult(); return; }
+    if (act === "add") {
+      var nc = { id: state.nextId++, title: "", description: "", cycle: "비정기", status: "정기", category: "기타", related_files: [], related_people: [], evidence: [], evidence_total: 0, confidence: "manual", needs_reply: false, caution: "", _new: true };
+      state.result.cards.unshift(nc); state.editing = nc.id; renderResult();
+      var tf = $("e-title-" + nc.id); if (tf) { tf.focus(); tf.closest(".card").scrollIntoView({ block: "center" }); }
+      return;
+    }
+    if (act === "copy") {
+      var md = toMarkdown();
+      state.copyText = md;
+      var ok = function () { renderResult(); $("copyToast").textContent = "마크다운으로 복사했습니다. 문서나 메일에 붙여 넣으세요."; };
+      var fail = function () { renderResult(); var ta = $("mdOut"); if (ta) { ta.focus(); ta.select(); } };
+      try { navigator.clipboard.writeText(md).then(ok, fail); } catch (err) { fail(); }
+    }
+  });
+
+  $("result").addEventListener("submit", function (e) {
+    var form = e.target.closest("[data-form]");
+    if (!form) return;
+    e.preventDefault();
+    var c = findCard(+form.getAttribute("data-form")), fd = new FormData(form);
+    var title = String(fd.get("title") || "").trim();
+    if (!title) return;
+    c.title = title; c.status = fd.get("status"); c.cycle = fd.get("cycle"); c.category = String(fd.get("category") || "기타").trim() || "기타";
+    c.description = String(fd.get("description") || "").trim(); c.caution = String(fd.get("caution") || "").trim();
+    c.related_files = String(fd.get("files") || "").split("\n").map(function (s) { return s.trim(); }).filter(Boolean);
+    c.related_people = String(fd.get("people") || "").split("\n").map(function (l) { return l.split(",").map(function (s) { return s.trim(); }); }).filter(function (p) { return p[0]; })
+      .map(function (p) { return { name: p[0], org: p[1] || null, email: p[2] || "" }; });
+    delete c._new;
+    state.editing = null; state.edited = true;
+    var order = { "진행 중": 0, "정기": 1, "참고": 2, "완료": 3 };
+    state.result.cards.sort(function (a, b) { return order[a.status] - order[b.status]; });
+    renderResult();
+    var el = $("card-" + c.id); if (el) el.scrollIntoView({ block: "nearest" });
+  });
+
+  function toMarkdown() {
+    var r = state.result, title = $("title").value.trim() || (($("owner").value.trim() || "나") + "의 인수인계");
+    var L = ["# " + title, ""];
+    var meta = [];
+    if ($("owner").value.trim()) meta.push("작성: " + $("owner").value.trim());
+    if ($("successor").value.trim()) meta.push("후임: " + $("successor").value.trim());
+    meta.push("기준일: " + r.stats.base_date);
+    L.push(meta.join(" / "), "");
+    STATUS.forEach(function (s) {
+      var cs = r.cards.filter(function (c) { return c.status === s; });
+      if (!cs.length) return;
+      L.push("## " + s, "");
+      cs.forEach(function (c) {
+        L.push("### " + c.title, "");
+        L.push("- 주기: " + c.cycle + " / 분류: " + c.category + (c.needs_reply ? " / **답장 안 한 메일 있음**" : ""));
+        if (c.description) L.push("", c.description);
+        if (c.caution) L.push("", "> **주의사항**: " + c.caution.replace(/\n/g, "\n> "));
+        if (c.related_files.length) { L.push("", "관련 파일"); c.related_files.forEach(function (p) { L.push("- " + p); }); }
+        if (c.related_people.length) { L.push("", "관련 담당자"); c.related_people.forEach(function (p) { L.push("- " + [p.name, p.org, p.email].filter(Boolean).join(", ")); }); }
+        L.push("");
+      });
+    });
+    if (r.contacts.length) {
+      L.push("## 업무 연락처", "", "| 이름 | 소속 | 메일 | 주고받은 메일 |", "|---|---|---|---:|");
+      r.contacts.forEach(function (p) { L.push("| " + [p.name, p.org + (p.internal ? "" : " (외부)"), p.email, p.count + "건"].join(" | ") + " |"); });
+    }
+    return L.join("\n");
+  }
+
+  ["title", "owner", "successor"].forEach(function (id) { $(id).addEventListener("input", function () { if (state.result) renderResultHeadOnly(); }); });
+  function renderResultHeadOnly() {
+    var h = $("resTitle");
+    if (h) h.textContent = $("title").value.trim() || (($("owner").value.trim() || "나") + "의 인수인계");
+  }
+
+  // ------------------------------------------------------------ 샘플
+  function loadSample() {
+    if (!SAMPLE) return;
+    state.mailSources = [{ name: "sample_mails.mbox", mails: E.parseMailSource("sample_mails.mbox", SAMPLE.mbox) }];
+    state.fileSources = [{ name: "sample_files.csv", files: E.parseFileList("sample_files.csv", SAMPLE.csv) }];
+    state.sample = true;
+    state.senderOverride.clear(); state.folderOverride.clear();
+    $("title").value = SAMPLE.title; $("owner").value = SAMPLE.owner_name; $("ownerEmail").value = SAMPLE.owner_email; $("successor").value = SAMPLE.successor_name;
+    setMsg("mailMsg", []); setMsg("folderMsg", []);
+    renderSources(); renderExclude();
+    generate(false);
+  }
+  $("loadSample").addEventListener("click", loadSample);
+  $("clearSample").addEventListener("click", function () {
+    leaveSample(); state.result = null; state.dirty = false; $("result").hidden = true; $("result").innerHTML = "";
+    changed();
+  });
+
+  loadSample();
+  renderSources();
+  renderGo();
+})();
+</script>
